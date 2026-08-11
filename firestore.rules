@@ -1,0 +1,25 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId} {
+      // Cada quien solo puede leer su propio documento.
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Solo se puede CREAR el documento propio, una vez, y siempre
+      // arrancando con exactamente 2 créditos. Así nadie puede crearse
+      // un documento con 999 créditos desde la consola del navegador.
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.credits == 2
+                    && request.resource.data.keys().hasOnly(['credits', 'email', 'createdAt']);
+
+      // Nadie puede modificar ni borrar créditos desde el cliente.
+      // Los descuentos los hace SOLO el backend (Netlify Function)
+      // usando el Admin SDK, que no pasa por estas reglas.
+      allow update, delete: if false;
+    }
+
+  }
+}
