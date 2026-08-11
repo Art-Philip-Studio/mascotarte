@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mascotarte — Retratos de tu mascota, pintados por IA</title>
+<meta name="description" content="Sube la foto de tu mascota y recíbela convertida en un retrato de galería en segundos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#16241F;
+    --bg-alt:#1F332B;
+    --ink:#F3ECDD;
+    --ink-dim:#C9C2AE;
+    --gold:#C9A227;
+    --gold-bright:#E4C158;
+    --burgundy:#6E2A2A;
+    --sage:#8FA08D;
+    --line: rgba(243,236,221,0.14);
+    --radius: 2px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Work Sans', sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  a{color:inherit;}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px;}
+
+  /* subtle canvas texture */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      radial-gradient(rgba(243,236,221,0.035) 1px, transparent 1px);
+    background-size:3px 3px;
+    pointer-events:none;
+    z-index:1;
+  }
+
+  header{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 32px;
+    background:linear-gradient(to bottom, rgba(22,36,31,0.96), rgba(22,36,31,0.85));
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  .logo{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:1.4rem;
+    letter-spacing:0.01em;
+  }
+  .logo span{color:var(--gold);}
+  nav{display:flex; align-items:center; gap:28px; font-size:0.92rem; color:var(--ink-dim);}
+  .ticket{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.78rem;
+    letter-spacing:0.04em;
+    border:1px solid var(--gold);
+    color:var(--gold-bright);
+    padding:7px 14px;
+    border-radius:var(--radius);
+    white-space:nowrap;
+  }
+
+  /* HERO */
+  .hero{
+    padding:88px 32px 70px;
+    display:grid;
+    grid-template-columns:1.05fr 0.95fr;
+    gap:56px;
+    align-items:center;
+    position:relative;
+    z-index:2;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.75rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:22px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--gold);}
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(2.4rem, 4.6vw, 3.9rem);
+    line-height:1.04;
+    letter-spacing:-0.01em;
+  }
+  h1 em{
+    font-style:italic;
+    font-weight:500;
+    color:var(--gold-bright);
+  }
+  .hero p.lead{
+    margin-top:22px;
+    font-size:1.08rem;
+    color:var(--ink-dim);
+    max-width:46ch;
+  }
+  .hero-cta{
+    margin-top:36px;
+    display:flex; gap:16px; align-items:center;
+  }
+  .btn{
+    font-family:'Work Sans', sans-serif;
+    font-weight:600;
+    font-size:0.95rem;
+    padding:15px 30px;
+    border-radius:var(--radius);
+    border:1px solid transparent;
+    cursor:pointer;
+    transition:transform .18s ease, background .18s ease;
+  }
+  .btn-primary{background:var(--gold); color:#1B1300;}
+  .btn-primary:hover{background:var(--gold-bright); transform:translateY(-1px);}
+  .btn-ghost{border-color:var(--line); color:var(--ink); background:transparent;}
+  .btn-ghost:hover{border-color:var(--gold);}
+
+  /* FRAME ART */
+  .frame-stage{
+    position:relative;
+    aspect-ratio:4/5;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .frame{
+    position:relative;
+    width:82%; height:82%;
+    background:var(--bg-alt);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+  }
+  .frame img{width:100%; height:100%; object-fit:cover; display:block; filter:saturate(1.05);}
+  .corner{position:absolute; width:46px; height:46px; pointer-events:none;}
+  .corner svg{width:100%; height:100%; stroke:var(--gold); stroke-width:2; fill:none;
+    stroke-dasharray:120; stroke-dashoffset:120;
+    animation:draw 1.6s ease forwards;
+  }
+  .corner.tl{top:-1px; left:-1px;}
+  .corner.tr{top:-1px; right:-1px; transform:scaleX(-1);}
+  .corner.bl{bottom:-1px; left:-1px; transform:scaleY(-1);}
+  .corner.br{bottom:-1px; right:-1px; transform:scale(-1,-1);}
+  @keyframes draw{to{stroke-dashoffset:0;}}
+  .plaque{
+    position:absolute; bottom:-18px; left:50%; transform:translateX(-50%);
+    background:var(--gold);
+    color:#1B1300;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    letter-spacing:0.05em;
+    padding:8px 20px;
+    white-space:nowrap;
+    box-shadow:0 10px 30px rgba(0,0,0,0.35);
+  }
+
+  /* STYLES SECTION */
+  section{position:relative; z-index:2; padding:90px 0;}
+  .section-head{max-width:640px; margin-bottom:52px;}
+  .section-head .eyebrow{margin-bottom:14px;}
+  h2{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(1.8rem, 3vw, 2.6rem);
+    letter-spacing:-0.01em;
+  }
+  h2 + p{color:var(--ink-dim); margin-top:14px; max-width:52ch;}
+
+  .styles-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+  }
+  .style-card{
+    background:var(--bg);
+    padding:34px 28px 30px;
+    cursor:pointer;
+    transition:background .2s ease;
+    position:relative;
+  }
+  .style-card:hover{background:var(--bg-alt);}
+  .style-card.active{background:var(--bg-alt);}
+  .style-card.active::after{
+    content:"seleccionado";
+    position:absolute; top:20px; right:28px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.68rem;
+    color:var(--gold-bright);
+  }
+  .style-num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    color:var(--gold);
+    margin-bottom:18px;
+  }
+  .style-card h3{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:1.25rem;
+    margin-bottom:10px;
+  }
+  .style-card p{color:var(--ink-dim); font-size:0.9rem;}
+  .swatch{
+    margin-top:20px;
+    height:5px;
+    width:44px;
+  }
+  .swatch.s1{background:linear-gradient(90deg,#8A2E2E,#C9A227);}
+  .swatch.s2{background:linear-gradient(90deg,#3E6E76,#B7D3C9);}
+  .swatch.s3{background:linear-gradient(90deg,#4A3417,#C9A227);}
+
+  /* UPLOAD */
+  .studio{
+    background:var(--bg-alt);
+    border:1px solid var(--line);
+    padding:56px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:48px;
+  }
+  .dropzone{
+    border:1px dashed var(--gold);
+    padding:40px;
+    text-align:center;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:280px;
+    position:relative;
+  }
+  .dropzone input{position:absolute; inset:0; opacity:0; cursor:pointer;}
+  .dropzone .icon{font-size:1.8rem; margin-bottom:14px; color:var(--gold);}
+  .dropzone strong{font-family:'Fraunces', serif; font-size:1.1rem; font-weight:600;}
+  .dropzone span{display:block; margin-top:8px; color:var(--ink-dim); font-size:0.85rem;}
+  #preview{max-width:100%; max-height:220px; display:none; object-fit:contain;}
+
+  .studio-right{display:flex; flex-direction:column; justify-content:center;}
+  .studio-right label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--sage);
+    display:block;
+    margin-bottom:12px;
+  }
+  #chosenStyle{font-family:'Fraunces', serif; font-size:1.3rem; margin-bottom:26px;}
+  .price-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 0; border-top:1px solid var(--line);
+    font-size:0.92rem; color:var(--ink-dim);
+  }
+  .price-row strong{color:var(--ink); font-weight:600;}
+  #generateBtn{margin-top:28px; width:100%;}
+  #statusMsg{margin-top:16px; font-size:0.85rem; color:var(--sage); min-height:1.2em;}
+
+  #authArea{display:flex; align-items:center; gap:14px;}
+  .credits-pill{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.78rem;
+    letter-spacing:0.04em;
+    border:1px solid var(--gold);
+    color:var(--gold-bright);
+    padding:7px 14px;
+    border-radius:var(--radius);
+    white-space:nowrap;
+  }
+  .user-email{font-size:0.82rem; color:var(--ink-dim); max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .logout-link{font-size:0.8rem; color:var(--ink-dim); cursor:pointer; text-decoration:underline;}
+  .logout-link:hover{color:var(--gold-bright);}
+
+  .modal-overlay{
+    display:none;
+    position:fixed; inset:0; z-index:100;
+    background:rgba(10,16,13,0.75);
+    align-items:center; justify-content:center;
+    padding:20px;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{
+    background:var(--bg-alt);
+    border:1px solid var(--line);
+    padding:36px 32px;
+    width:100%; max-width:380px;
+    position:relative;
+    display:flex; flex-direction:column; gap:12px;
+  }
+  .modal h3{font-family:'Fraunces', serif; font-size:1.4rem; font-weight:600; margin-bottom:6px;}
+  .modal-close{
+    position:absolute; top:14px; right:16px;
+    background:none; border:none; color:var(--ink-dim);
+    font-size:1.4rem; cursor:pointer; line-height:1;
+  }
+  .modal-close:hover{color:var(--ink);}
+  .modal input{
+    background:var(--bg);
+    border:1px solid var(--line);
+    color:var(--ink);
+    padding:12px 14px;
+    font-family:'Work Sans', sans-serif;
+    font-size:0.92rem;
+    border-radius:var(--radius);
+  }
+  .modal input:focus{outline:none; border-color:var(--gold);}
+  .modal-divider{display:flex; align-items:center; gap:10px; color:var(--ink-dim); font-size:0.8rem; margin:4px 0;}
+  .modal-divider::before, .modal-divider::after{content:""; flex:1; height:1px; background:var(--line);}
+  .modal-google{width:100%;}
+  .modal-toggle{font-size:0.85rem; color:var(--ink-dim); text-align:center; margin-top:4px;}
+  .modal-toggle a{color:var(--gold-bright); text-decoration:underline;}
+  #authError{color:#C97A7A; font-size:0.82rem; min-height:1em;}
+
+  .result-box{margin-top:20px; display:none; text-align:center;}
+  .result-box img{width:100%; max-height:320px; object-fit:contain; border:1px solid var(--line);}
+  .result-box .btn{margin-top:12px; width:100%;}
+
+  footer{
+    padding:44px 32px;
+    border-top:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center;
+    color:var(--ink-dim); font-size:0.85rem;
+    position:relative; z-index:2;
+  }
+
+  @media (max-width: 860px){
+    .hero{grid-template-columns:1fr; padding-top:56px;}
+    .frame-stage{order:-1; max-width:340px; margin:0 auto 20px;}
+    .styles-grid{grid-template-columns:1fr;}
+    .studio{grid-template-columns:1fr; padding:32px 24px;}
+    nav{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Mascota<span>rte</span></div>
+  <nav>
+    <a href="#estilos">Estilos</a>
+    <a href="#estudio">Crear retrato</a>
+    <a href="#como">Cómo funciona</a>
+  </nav>
+  <div id="authArea">
+    <button class="btn btn-ghost" id="loginBtn" style="padding:9px 18px; font-size:0.85rem;" onclick="abrirModal()">Iniciar sesión</button>
+  </div>
+</header>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="cerrarModal()">&times;</button>
+    <h3 id="modalTitle">Iniciar sesión</h3>
+    <button class="btn btn-ghost modal-google" onclick="loginConGoogle()">Continuar con Google</button>
+    <div class="modal-divider"><span>o</span></div>
+    <input type="email" id="authEmail" placeholder="Correo electrónico" autocomplete="email">
+    <input type="password" id="authPassword" placeholder="Contraseña" autocomplete="current-password">
+    <div id="authError"></div>
+    <button class="btn btn-primary" id="authSubmitBtn" onclick="enviarAuthForm()">Iniciar sesión</button>
+    <p class="modal-toggle" id="modalToggle">¿No tienes cuenta? <a href="#" onclick="alternarModoModal(event)">Regístrate</a></p>
+  </div>
+</div>
+
+<section class="hero wrap">
+  <div>
+    <div class="eyebrow">Retratos con inteligencia artificial</div>
+    <h1>Tu mascota,<br>colgada en <em>una galería</em>.</h1>
+    <p class="lead">Sube una foto. En segundos la convertimos en un retrato de estudio — el mismo que verías enmarcado en la pared de una casa elegante. Sin fotógrafo, sin ilustrador, sin espera.</p>
+    <div class="hero-cta">
+      <button class="btn btn-primary" onclick="document.getElementById('estudio').scrollIntoView({behavior:'smooth'})">Crear mi retrato</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('estilos').scrollIntoView({behavior:'smooth'})">Ver estilos</button>
+    </div>
+  </div>
+  <div class="frame-stage">
+    <div class="frame">
+      <img src="https://images.unsplash.com/photo-1517849845537-4d257902861a?w=600&q=80" alt="Ejemplo de retrato de mascota">
+      <div class="corner tl"><svg viewBox="0 0 46 46"><path d="M2,20 L2,2 L20,2"/></svg></div>
+      <div class="corner tr"><svg viewBox="0 0 46 46"><path d="M2,20 L2,2 L20,2"/></svg></div>
+      <div class="corner bl"><svg viewBox="0 0 46 46"><path d="M2,20 L2,2 L20,2"/></svg></div>
+      <div class="corner br"><svg viewBox="0 0 46 46"><path d="M2,20 L2,2 L20,2"/></svg></div>
+    </div>
+    <div class="plaque">RETRATO N.º 014 — ÓLEO CLÁSICO</div>
+  </div>
+</section>
+
+<section id="estilos" class="wrap">
+  <div class="section-head">
+    <div class="eyebrow">Colección</div>
+    <h2>Tres estilos, un solo clic.</h2>
+    <p>Cada estilo es un prompt fijo y probado. Tú eliges el marco, nosotros pintamos.</p>
+  </div>
+  <div class="styles-grid">
+    <div class="style-card active" data-style="dramatica" onclick="selectStyle(this,'Ilustración Dramática')">
+      <div class="style-num">01</div>
+      <h3>Ilustración Dramática</h3>
+      <p>Contraste alto, paleta roja y dorada, luz de estudio. El favorito para compartir.</p>
+      <div class="swatch s1"></div>
+    </div>
+    <div class="style-card" data-style="acuarela" onclick="selectStyle(this,'Acuarela Suave')">
+      <div class="style-num">02</div>
+      <h3>Acuarela Suave</h3>
+      <p>Trazos sueltos, tonos pastel, fondo de papel texturizado. Delicado y tierno.</p>
+      <div class="swatch s2"></div>
+    </div>
+    <div class="style-card" data-style="oleo" onclick="selectStyle(this,'Óleo Renacentista')">
+      <div class="style-num">03</div>
+      <h3>Óleo Renacentista</h3>
+      <p>Fondo oscuro, pinceladas densas, marco dorado clásico. El más solemne.</p>
+      <div class="swatch s3"></div>
+    </div>
+  </div>
+</section>
+
+<section id="estudio" class="wrap">
+  <div class="section-head">
+    <div class="eyebrow">Estudio</div>
+    <h2>Sube la foto de tu mascota</h2>
+    <p>Usa buena luz y un encuadre donde se vea bien la cara. El resto lo hacemos nosotros.</p>
+  </div>
+  <div class="studio">
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept="image/*">
+      <div class="icon">&#9679;</div>
+      <strong>Arrastra una foto aquí</strong>
+      <span>o haz clic para elegir un archivo — JPG o PNG</span>
+      <img id="preview" alt="Vista previa">
+    </div>
+    <div class="studio-right">
+      <label>Estilo elegido</label>
+      <div id="chosenStyle">Ilustración Dramática</div>
+      <div class="price-row"><span>Costo del retrato</span><strong>1 crédito</strong></div>
+      <div class="price-row"><span>Créditos disponibles</span><strong id="creditsRow">3</strong></div>
+      <button class="btn btn-primary" id="generateBtn" onclick="generarRetrato()">Generar retrato</button>
+      <div id="statusMsg"></div>
+      <div class="result-box" id="resultBox">
+        <img id="resultImg" alt="Retrato generado">
+        <button class="btn btn-ghost" id="downloadBtn" onclick="descargarResultado()">Descargar retrato</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">
+  <div>Mascotarte — retratos de estudio para mascotas, hechos con IA.</div>
+  <div>© 2026</div>
+</footer>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+    createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, onSnapshot
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBY13jiqfutTKeNPgDv349OudpnVTreL0k",
+    authDomain: "mascotarte-857dd.firebaseapp.com",
+    projectId: "mascotarte-857dd",
+    storageBucket: "mascotarte-857dd.firebasestorage.app",
+    messagingSenderId: "749602109704",
+    appId: "1:749602109704:web:50ef7d528b5a4447b054bd",
+    measurementId: "G-F1J8H2FX02"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const googleProvider = new GoogleAuthProvider();
+
+  let currentUser = null;
+  let currentCredits = 0;
+  let creditsUnsub = null;
+  let modoModal = 'login'; // 'login' | 'registro'
+
+  let selectedStyle = 'dramatica';
+  let selectedFile = null;
+
+  window.selectStyle = function(el, label){
+    document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    selectedStyle = el.dataset.style;
+    document.getElementById('chosenStyle').textContent = label;
+  };
+
+  const fileInput = document.getElementById('fileInput');
+  const preview = document.getElementById('preview');
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    selectedFile = file;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      preview.src = ev.target.result;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // ---------- MODAL DE LOGIN / REGISTRO ----------
+  window.abrirModal = function(){
+    document.getElementById('authError').textContent = '';
+    document.getElementById('modalOverlay').classList.add('open');
+  };
+  window.cerrarModal = function(){
+    document.getElementById('modalOverlay').classList.remove('open');
+  };
+  window.alternarModoModal = function(e){
+    e.preventDefault();
+    modoModal = modoModal === 'login' ? 'registro' : 'login';
+    const esLogin = modoModal === 'login';
+    document.getElementById('modalTitle').textContent = esLogin ? 'Iniciar sesión' : 'Crear cuenta';
+    document.getElementById('authSubmitBtn').textContent = esLogin ? 'Iniciar sesión' : 'Crear cuenta';
+    document.getElementById('modalToggle').innerHTML = esLogin
+      ? '¿No tienes cuenta? <a href="#" onclick="alternarModoModal(event)">Regístrate</a>'
+      : '¿Ya tienes cuenta? <a href="#" onclick="alternarModoModal(event)">Inicia sesión</a>';
+  };
+
+  window.enviarAuthForm = async function(){
+    const email = document.getElementById('authEmail').value.trim();
+    const password = document.getElementById('authPassword').value;
+    const errorEl = document.getElementById('authError');
+    errorEl.textContent = '';
+
+    if(!email || !password){
+      errorEl.textContent = 'Completa correo y contraseña.';
+      return;
+    }
+
+    try{
+      if(modoModal === 'login'){
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        await crearDocUsuarioSiNoExiste(cred.user);
+      }
+      cerrarModal();
+    }catch(err){
+      errorEl.textContent = traducirErrorAuth(err.code);
+    }
+  };
+
+  window.loginConGoogle = async function(){
+    const errorEl = document.getElementById('authError');
+    errorEl.textContent = '';
+    try{
+      const cred = await signInWithPopup(auth, googleProvider);
+      await crearDocUsuarioSiNoExiste(cred.user);
+      cerrarModal();
+    }catch(err){
+      errorEl.textContent = traducirErrorAuth(err.code);
+    }
+  };
+
+  window.cerrarSesion = async function(){
+    await signOut(auth);
+  };
+
+  function traducirErrorAuth(code){
+    const mapa = {
+      'auth/invalid-email': 'Correo inválido.',
+      'auth/user-not-found': 'No existe una cuenta con ese correo.',
+      'auth/wrong-password': 'Contraseña incorrecta.',
+      'auth/invalid-credential': 'Correo o contraseña incorrectos.',
+      'auth/email-already-in-use': 'Ya existe una cuenta con ese correo.',
+      'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres.',
+      'auth/popup-closed-by-user': 'Se cerró la ventana de Google antes de terminar.',
+    };
+    return mapa[code] || 'Algo salió mal, intenta de nuevo.';
+  }
+
+  // Crea el documento del usuario en Firestore con 2 créditos, SOLO si no existe.
+  async function crearDocUsuarioSiNoExiste(user){
+    const ref = doc(db, 'users', user.uid);
+    const snap = await getDoc(ref);
+    if(!snap.exists()){
+      await setDoc(ref, {
+        credits: 2,
+        email: user.email || '',
+        createdAt: Date.now(),
+      });
+    }
+  }
+
+  // ---------- ESTADO DE SESIÓN Y CRÉDITOS EN VIVO ----------
+  const authArea = document.getElementById('authArea');
+
+  onAuthStateChanged(auth, async (user) => {
+    currentUser = user;
+
+    if(creditsUnsub){ creditsUnsub(); creditsUnsub = null; }
+
+    if(!user){
+      currentCredits = 0;
+      authArea.innerHTML = `<button class="btn btn-ghost" style="padding:9px 18px; font-size:0.85rem;" onclick="abrirModal()">Iniciar sesión</button>`;
+      return;
+    }
+
+    // Por si el doc no se creó todavía (ej. login normal de alguien que ya existía).
+    await crearDocUsuarioSiNoExiste(user);
+
+    authArea.innerHTML = `
+      <span class="credits-pill" id="creditsTicket">… créditos</span>
+      <span class="user-email">${user.email || ''}</span>
+      <span class="logout-link" onclick="cerrarSesion()">Salir</span>
+    `;
+
+    const ref = doc(db, 'users', user.uid);
+    creditsUnsub = onSnapshot(ref, (snap) => {
+      currentCredits = snap.exists() ? (snap.data().credits ?? 0) : 0;
+      const pill = document.getElementById('creditsTicket');
+      if(pill) pill.textContent = `${currentCredits} crédito${currentCredits === 1 ? '' : 's'} disponible${currentCredits === 1 ? '' : 's'}`;
+      const row = document.getElementById('creditsRow');
+      if(row) row.textContent = currentCredits;
+    });
+  });
+
+  // ---------- GENERAR RETRATO ----------
+  window.generarRetrato = async function(){
+    const statusMsg = document.getElementById('statusMsg');
+    const resultBox = document.getElementById('resultBox');
+    statusMsg.style.color = '';
+    resultBox.style.display = 'none';
+
+    if(!currentUser){
+      statusMsg.textContent = 'Inicia sesión primero para generar tu retrato.';
+      statusMsg.style.color = '#C97A7A';
+      abrirModal();
+      return;
+    }
+    if(!selectedFile){
+      statusMsg.textContent = 'Primero sube una foto de tu mascota.';
+      statusMsg.style.color = '#C97A7A';
+      return;
+    }
+    if(currentCredits < 1){
+      statusMsg.textContent = 'No te quedan créditos disponibles.';
+      statusMsg.style.color = '#C97A7A';
+      return;
+    }
+
+    statusMsg.textContent = 'Pintando tu retrato... esto toma unos segundos.';
+
+    try{
+      const base64 = await fileToBase64(selectedFile);
+      const idToken = await currentUser.getIdToken();
+
+      const res = await fetch('/.netlify/functions/generar-retrato', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + idToken,
+        },
+        body: JSON.stringify({ imagen: base64, estilo: selectedStyle })
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || 'Error generando el retrato');
+
+      statusMsg.textContent = '¡Listo! Tu retrato fue generado.';
+      document.getElementById('resultImg').src = 'data:image/png;base64,' + data.imagenResultado;
+      resultBox.style.display = 'block';
+      // El crédito ya se descontó en el backend; el contador se actualiza solo vía onSnapshot.
+    }catch(err){
+      statusMsg.textContent = 'Algo salió mal: ' + err.message;
+      statusMsg.style.color = '#C97A7A';
+    }
+  };
+
+  window.descargarResultado = function(){
+    const img = document.getElementById('resultImg');
+    const a = document.createElement('a');
+    a.href = img.src;
+    a.download = 'mascotarte-retrato.png';
+    a.click();
+  };
+
+  function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+</script>
+
+</body>
+</html>
