@@ -244,6 +244,16 @@
   .dropzone strong{font-family:'Fraunces', serif; font-size:1.1rem; font-weight:600;}
   .dropzone span{display:block; margin-top:8px; color:var(--ink-dim); font-size:0.85rem;}
   #preview{max-width:100%; max-height:220px; display:none; object-fit:contain;}
+  #clearPhotoBtn{
+    display:none;
+    align-items:center; justify-content:center;
+    position:absolute; top:10px; right:10px; z-index:5;
+    width:30px; height:30px; border-radius:50%;
+    background:var(--bg); border:1px solid var(--gold);
+    color:var(--ink); font-size:1.1rem; line-height:1;
+    cursor:pointer;
+  }
+  #clearPhotoBtn:hover{background:var(--burgundy); border-color:var(--burgundy);}
 
   .studio-right{display:flex; flex-direction:column; justify-content:center;}
   .studio-right label{
@@ -427,11 +437,12 @@
   </div>
   <div class="studio">
     <div class="dropzone" id="dropzone">
-      <input type="file" id="fileInput" accept="image/*">
+      <input type="file" id="fileInput" accept="image/*" capture="environment">
       <div class="icon">&#9679;</div>
       <strong>Arrastra una foto aquí</strong>
       <span>o haz clic para elegir un archivo — JPG o PNG</span>
       <img id="preview" alt="Vista previa">
+      <button type="button" id="clearPhotoBtn" aria-label="Quitar foto">&times;</button>
     </div>
     <div class="studio-right">
       <label>Estilo elegido</label>
@@ -495,6 +506,8 @@
 
   const fileInput = document.getElementById('fileInput');
   const preview = document.getElementById('preview');
+  const clearPhotoBtn = document.getElementById('clearPhotoBtn');
+
   fileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if(!file) return;
@@ -503,8 +516,19 @@
     reader.onload = (ev) => {
       preview.src = ev.target.result;
       preview.style.display = 'block';
+      clearPhotoBtn.style.display = 'flex';
     };
     reader.readAsDataURL(file);
+  });
+
+  clearPhotoBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    selectedFile = null;
+    fileInput.value = '';
+    preview.src = '';
+    preview.style.display = 'none';
+    clearPhotoBtn.style.display = 'none';
   });
 
   // ---------- MODAL DE LOGIN / REGISTRO ----------
