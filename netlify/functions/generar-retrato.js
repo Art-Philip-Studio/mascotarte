@@ -163,9 +163,17 @@ exports.handler = async (event) => {
 
     if (!imagenResultado) {
       await revertirCredito(uid);
+      const finishReason = data.candidates?.[0]?.finishReason || "desconocido";
+      const textoDevuelto = parts.find((p) => p.text)?.text || "";
+      console.error("Gemini no devolvió imagen. finishReason:", finishReason, "texto:", textoDevuelto);
       return {
         statusCode: 502,
-        body: JSON.stringify({ error: "Gemini no devolvió una imagen" }),
+        body: JSON.stringify({
+          error:
+            "Gemini no generó una imagen (motivo: " + finishReason + "). " +
+            "Esto suele pasar si la foto tiene marcas/personajes registrados, o contenido que el modelo rechaza. Prueba con otra foto." +
+            (textoDevuelto ? " Detalle: " + textoDevuelto.slice(0, 200) : ""),
+        }),
       };
     }
 
